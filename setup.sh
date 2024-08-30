@@ -1,7 +1,16 @@
 #!/bin/bash
+# ######################################################################
+# This script sets up a Python virtual environment and installs the
+# required dependencies for the project.
+# Author: chongjing.luo@mail.bnu.edu.cn
+# Date: 2024.08-30
+# ######################################################################
+
+# 获取本代码的路径并进入
+cd "$(dirname "$0")"
 
 # 设置虚拟环境名称
-VENV_NAME="ccsqc"
+VENV_NAME="VENV_ccsqc"
 
 # 检查操作系统类型
 OS_TYPE=$(uname)
