@@ -28,7 +28,6 @@ git clone https://github.com/chongjing-luo/ccsqc.git
 ```
 
 ### 2. 安装依赖
-
 进入项目根目录，运行以下命令创建虚拟环境并安装依赖：
 ```bash
 bash setup.sh
@@ -37,7 +36,6 @@ bash setup.sh
 ```bash
 bash setup_conda.sh
 ```
-
 该命令会自动安装项目所需的Python环境和依赖包。同时生成一个名为`start.sh`的脚本，用于启动项目。
 
 ### 3. 运行项目
@@ -45,8 +43,8 @@ bash setup_conda.sh
 安装完成后，运行以下命令启动项目：
 
 ```bash
-# 可以通过执行以下命令启动项目，该命令会自动选择合适的Python环境
-start.sh
+# 可以通过执行以下命令启动项目，该脚本会自动激活虚拟/conda环境并运行ccsqc.py文件：
+bash start.sh
 ```
 
 ```bash
