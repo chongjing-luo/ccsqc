@@ -1767,7 +1767,7 @@ def askproject(projectname):
             quit()
         elif not os.path.exists(output_dir):
             print(f"** {dirname} directory does not exist: {output_dir} ")
-            dirask(dirname)
+            return dirask(dirname)  # 返回递归调用的结果
         else:
             return output_dir
 
@@ -1795,7 +1795,7 @@ def askproject(projectname):
     else:  # 如果输入了项目名称，则检查是否存在，不存在则询问是否创建新项目
         # 如果项目或路径不存在，则询问是否创建新项目
         if projectname not in projects or not os.path.exists(projects[projectname]):  # 检查项目是否存在
-            create_new = input(f"The projcet {projectname} do not exist, do you want to create a new project (yes), or quit (no)? ")
+            create_new = input(f"The project {projectname} does not exist, do you want to create a new project (yes), or quit (no)? ")
             if create_new == "yes":
                 output_dir = dirask("Output")
                 creatnewproject(projectname, output_dir, codes_dir, projects_file)
@@ -1804,6 +1804,7 @@ def askproject(projectname):
                 quit()
         else:
             return projectname
+
 
 
 if __name__ == "__main__":

@@ -23,6 +23,14 @@ elif [ "$OS_TYPE" == "Darwin" ]; then
     else
         echo "MacOS: python3.10 已安装。"
     fi
+
+    # 安装 Tkinter 依赖
+    if ! brew list | grep -q python-tk@3.10; then
+        echo "MacOS: python-tk@3.10 未安装，正在安装..."
+        brew install python-tk@3.10
+    else
+        echo "MacOS: python-tk@3.10 已安装。"
+    fi
 else
     echo "不支持的操作系统: $OS_TYPE"
     exit 1
@@ -38,6 +46,9 @@ fi
 
 # 激活虚拟环境
 source $VENV_NAME/bin/activate
+
+# 确保 pip 已更新
+pip install --upgrade pip
 
 # 安装依赖
 echo "正在安装依赖项..."
@@ -56,4 +67,3 @@ echo "$PYTHON_PATH $(pwd)/ccsqc.py" >> start.sh
 chmod +x start.sh
 
 echo "Setup complete. You can now start the project with bash start.sh"
-
