@@ -1762,14 +1762,52 @@ def askproject(projectname):
         return
 
     def dirask(dirname):
-        output_dir = input(f"** Please enter the {dirname} directory, or quit (q): ")
+        output_dir = input(f"** Please enter the path of {dirname}, or quit (q): ")
         if output_dir == "q":
             quit()
         elif not os.path.exists(output_dir):
-            print(f"** {dirname} directory does not exist: {output_dir} ")
+            print(f"** {dirname} does not exist: {output_dir} ")
             return dirask(dirname)  # 返回递归调用的结果
         else:
             return output_dir
+
+    def openanexistproject(codes_dir,projects_file):
+        filedir = input("Please entry the path of project .json file which start with 'settings_' (entry 'quit' to exit): ")
+        settings_filename = os.path.basename(filedir)
+        print(f"** settings_filename: {settings_filename}")
+        if not settings_filename.startswith("settings_") or not settings_filename.endswith(".json"):
+            print("The project setting file should starts with 'settings_' and end with '.json'.")
+            return openanexistproject(codes_dir, projects_file)
+        elif not os.path.exists(filedir):
+            print(f"** Project setting file does not exist: {filedir}")
+            return openanexistproject(codes_dir, projects_file)
+        elif filedir == "quit":
+            quit()
+        else:
+            with open(filedir, 'r') as f:
+                settings = json.load(f)
+                projectdir = settings.get("dirs", {}).get("output_dir", {}).get("path", "")
+                print(f"** Project output directory: {projectdir}")
+            if not os.path.exists(projectdir):
+                input(f"** The output directory does not exist: {projectdir}. Do you want to \n"
+                      f"   - create this folder (yes), \n"
+                      f"   - re-entry setting file path (no), \n"
+                      f"   - or quit (quit)? \n"
+                      f" : ")
+                if input("yes"):
+                    os.makedirs(projectdir, exist_ok=True)
+                elif input("no"):
+                    return openanexistproject(codes_dir, projects_file)
+                elif input("quit"):
+                    quit()
+            projectname = settings_filename.split("_")[1].split(".")[0]
+            projects_file["projects"][projectname] = filedir
+            projects_file["last_project"] = projectname
+            print(f"** Open the project: {projectname}")
+            with open(os.path.join(codes_dir, "projects.json"), 'w') as f:
+                json.dump(projects_file, f, indent=4)
+            return projectname
+
 
     codes_dir = os.path.dirname(os.path.abspath(__file__))
     path_proj = os.path.join(codes_dir, "projects.json")  # 本代码文件的路径中的projects.json文件
@@ -1780,27 +1818,41 @@ def askproject(projectname):
 
     if projectname == "":  # 如果没有输入项目名称，则询问是否打开上一个项目或则打开默认项目
         if last_project != "" and os.path.exists(projects[last_project]):  # 如果上一个项目存在，则询问是否打开上一个项目
-            print(f"You don't entry a project name. Opening the last project: {last_project}")
+            print(f"** You don't entry a project name. Opening the last project: {last_project}")
             return last_project
         else:
-            creatnew = input("You don't entry a project name. Do you want to create a new project (yes), or quit (no)? ")
+            creatnew = input("** You don't entry a project name. You can \n"
+                             "   - create a new project (yes) \n"
+                             "   - open an exist project with setting .json file (no) , \n"
+                             "   - quit (quit)\n"
+                             " : ")
             if creatnew == "yes":
                 projectname = input("Please enter the name of the project: ")
                 output_dir = dirask("Output")
                 creatnewproject(projectname, output_dir, codes_dir, projects_file)
                 return projectname
             elif creatnew == "no":
+                projectname = openanexistproject(codes_dir, projects_file)
+                return projectname
+            elif creatnew == "quit":
                 quit()
 
     else:  # 如果输入了项目名称，则检查是否存在，不存在则询问是否创建新项目
         # 如果项目或路径不存在，则询问是否创建新项目
         if projectname not in projects or not os.path.exists(projects[projectname]):  # 检查项目是否存在
-            create_new = input(f"The project {projectname} does not exist, do you want to create a new project (yes), or quit (no)? ")
+            create_new = input(f"** The project {projectname} does not exist. You can \n"
+                               f"    - create a new project (yes), \n"
+                               f"    - open an exist project (no), \n"
+                               f"    - or quit (quit)? \n"
+                               f" : ")
             if create_new == "yes":
                 output_dir = dirask("Output")
                 creatnewproject(projectname, output_dir, codes_dir, projects_file)
                 return projectname
             elif create_new == "no":
+                projectname = openanexistproject(codes_dir, projects_file)
+                return projectname
+            elif create_new == "quit":
                 quit()
         else:
             return projectname
@@ -1817,10 +1869,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Start the CCSQC application.")
     parser.add_argument("--ProjectName", type=str, default="",
-                        help="The name of the project you want to open (e.g., adhd). If the project does not exist, it will be created.")
-    parser.add_argument("--DeleteProject", type=str, help="The name of the project you want to delete from settings file, rating files will not delete.")
-    args = parser.parse_args()
+                        help="The name of the project you want to open (e.g., adhd)."
+                             " If the project does not exist, it will be created.")
+    parser.add_argument("--DeleteProject", type=str, help="The name of the project you want to delete from "
+                                                          "settings file, rating files will not delete.")
 
+    args = parser.parse_args()
     codes_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(codes_dir)
     with open("projects.json", 'r') as f:
