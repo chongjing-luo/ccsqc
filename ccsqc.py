@@ -3,7 +3,7 @@
 # author: chongjing.luo@mail.bnu.edu.cn
 # date: 2024-08-27
 # #######################################################################
-import json, os, re, datetime, glob, subprocess, argparse, shutil, inspect,sys
+import json, os, re, datetime, glob, subprocess, argparse, shutil, inspect, sys, platform
 import pandas as pd
 from tkinter import (Tk, Frame, Label, INSERT, IntVar, Button, Entry, filedialog, END, StringVar, OptionMenu, Toplevel,
                      Checkbutton, Text, VERTICAL, Radiobutton, messagebox, Menu, Scrollbar, ttk)
@@ -17,6 +17,10 @@ class ccsqc:
     def __init__(self, master, projectname, scale=0):
 
         self.master = master
+        self.platform = platform.system()
+        if self.platform == "Darwin":  # Darwin 是 macOS 的底层系统名称
+            self.master.tk.call('tk', 'menu', 'system', 'true')
+
         self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.popup_table = None # 弹出的窗口
         self.cansave = True # 是否可以保存评分记录，用来调整右键菜单
@@ -324,7 +328,12 @@ class ccsqc:
         self.listbox.bind('<Double-Button-1>', lambda event: self.operate_qc("navigate_subject", qc_type, 0))
         # 右键菜单，弹出选项
         self.right_click_menu = Menu(self.master, tearoff=0)
-        self.listbox.bind("<Button-3>", lambda event: self.show_right_click_menu(self.listbox, event, qc_type))
+
+        # 右键菜单的选项
+        if self.platform in ["Linux", "Windows"]:
+            self.listbox.bind("<Button-3>", lambda event: self.show_right_click_menu(self.listbox, event, qc_type))
+        elif self.platform == "Darwin":
+            self.listbox.bind("<Button-2>", lambda event: self.show_right_click_menu(self.listbox, event, qc_type))
 
         # 第三部分：底部的按钮
         frame_buttons = Frame(frame_middle)
@@ -642,7 +651,6 @@ class ccsqc:
             button.config(command=lambda et=errortype: self.select_and_filter("words", et))
             button.place(x=222 + i * 50, y=2, width=47, height=35)
 
-
     def show_right_click_menu(self, listbox, event, qc_type_summary):
         def cancel_right_click_menu(event=None):
             # 取消右键菜单
@@ -670,7 +678,7 @@ class ccsqc:
             cancel_right_click_menu()
 
         # 确保菜单对象已创建
-        if not hasattr(self, 'right_click_menu'):
+        if not hasattr(self, 'right_click_menu') or not self.right_click_menu.winfo_exists():
             self.right_click_menu = Menu(self.master, tearoff=0)
 
         # 获取右键选中项目的imgid
@@ -694,8 +702,9 @@ class ccsqc:
                     del result_dict_imgid[key_to_exclude]
 
             # 清空并重新填充菜单项
-            if self.right_click_menu:
+            if hasattr(self, 'right_click_menu') and self.right_click_menu.winfo_exists():
                 self.right_click_menu.delete(0, END)
+
             try:
                 # 获取鼠标点击位置的索引
                 item = listbox.identify_row(event.y)
@@ -730,12 +739,14 @@ class ccsqc:
 
                 # 绑定点击页面其他地方的事件
                 if not hasattr(self, 'cancel_id') or self.cancel_id is None:
-                    self.cancel_id = self.master.bind("<Button-1>", cancel_right_click_menu, add="+")
-
-                # 绑定 popup_table 的销毁事件
-                if hasattr(self, 'popup_table'):
-                    if not hasattr(self, 'popup_cancel_id') or self.popup_cancel_id is None:
-                        self.popup_cancel_id = self.popup_table.bind("<Destroy>", on_popup_table_destroy)
+                    if qc_type_summary == "summary":
+                        if hasattr(self, 'popup_table') and self.popup_table is not None:
+                            self.cancel_id = self.popup_table.bind("<Button-1>", cancel_right_click_menu, add="+")
+                        if hasattr(self, 'popup_table'):
+                            if not hasattr(self, 'popup_cancel_id') or self.popup_cancel_id is None:
+                                self.popup_cancel_id = self.popup_table.bind("<Destroy>", on_popup_table_destroy)
+                    else:
+                        self.cancel_id = self.master.bind("<Button-1>", cancel_right_click_menu, add="+")
 
             except Exception as e:
                 print(f"{inspect.currentframe().f_lineno} Error: {e}")
@@ -748,7 +759,6 @@ class ccsqc:
             self.showbox_select.delete(*self.showbox_select.get_children())
         elif type == 'summary':
             self.showbox.delete(*self.showbox.get_children())
-
 
         if content:
             content_explained = []
@@ -1251,9 +1261,13 @@ class ccsqc:
                 break
 
     def show_the_table(self, table=None, type="summary"):
-        # self.popup_table已经打开，则关闭它
-        if hasattr(self, 'popup_table') and self.popup_table:
-            self.popup_table.destroy()
+        # 检查 self.popup_table 是否存在且有效
+        if hasattr(self, 'popup_table') and self.popup_table is not None:
+            if self.popup_table.winfo_exists():
+                # 解除右键菜单绑定，防止销毁时报错
+                self.listbox_table.unbind("<Button-3>")
+                self.listbox_table.unbind("<Button-2>")
+                self.popup_table.destroy()
             self.popup_table = None
 
         if table is None:
@@ -1295,10 +1309,12 @@ class ccsqc:
         self.listbox_table.grid(row=0, column=0, sticky="nsew")
 
         # 右键菜单绑定
-        self.right_click_menu = Menu(self.popup_table, tearoff=0)
-        self.listbox_table.bind("<Button-3>",
-                                lambda event: self.show_right_click_menu(self.listbox_table, event, "summary"))
-        self.right_click_menu = Menu(self.master, tearoff=0)
+        if self.platform in ["Linux", "Windows"]:
+            self.listbox_table.bind("<Button-3>",
+                                    lambda event: self.show_right_click_menu(self.listbox_table, event, "summary"))
+        elif self.platform == "Darwin":
+            self.listbox_table.bind("<Button-2>",
+                                    lambda event: self.show_right_click_menu(self.listbox_table, event, "summary"))
 
         # Insert data into the Treeview
         for index, row in enumerate(data[1:], start=1):
@@ -1318,7 +1334,6 @@ class ccsqc:
         # 确保主窗口在调整大小时调整布局
         self.popup_table.grid_rowconfigure(0, weight=1)
         self.popup_table.grid_columnconfigure(0, weight=1)
-
 
     def show_summary(self):
         pass
