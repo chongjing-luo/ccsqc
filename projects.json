@@ -1,4 +1,6 @@
 {
-    "projects": {},
-    "last_project": ""
+    "projects": {
+        "adhdpeki": "/home/ub22lcj/Project/Project/ProjectsADHD/Stage01_MRIdata/easyqc_adhdpeki/settings_adhdpeki.json"
+    },
+    "last_project": "adhdpeki"
 }

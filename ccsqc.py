@@ -1395,9 +1395,10 @@ class ccsqc:
                 self.NonHeadMotionArtifacts.set(0)
             elif self.qctype == "skullstrip":
                 self.tree.delete(*self.tree.get_children())
-            elif self.qctype == "reconstruction":
+            elif self.qctype == "reconstruct":
                 self.tree.delete(*self.tree.get_children())
-            elif self.qctype == "registration":
+
+            elif self.qctype == "registrate":
                 pass
         # save and load rating file
         else:
