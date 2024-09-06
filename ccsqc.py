@@ -18,8 +18,8 @@ class ccsqc:
 
         self.master = master
         self.platform = platform.system()
-        if self.platform == "Darwin":  # Darwin 是 macOS 的底层系统名称
-            self.master.tk.call('tk', 'menu', 'system', 'true')
+        # if self.platform == "Darwin":  # Darwin 是 macOS 的底层系统名称
+        #     self.master.tk.call('tk', 'menu', 'system', 'true')
 
         self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.popup_table = None # 弹出的窗口
