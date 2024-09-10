@@ -3,6 +3,7 @@ start.sh
 
 # 忽略以 VENV 开头的目录及其内容
 VENV*/
+ccsqcenv/
 
 # 忽略特定的文件
 settings_default.json

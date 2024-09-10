@@ -44,11 +44,11 @@ if ! command -v conda &> /dev/null; then
 fi
 
 # 创建 Conda 环境
-if conda env list | grep -q "$ENV_NAME"; then
+if [ -d "$(pwd)/$ENV_NAME" ]; then
     echo "Conda 环境 '$ENV_NAME' 已存在。"
 else
     echo "正在创建 Conda 环境 '$ENV_NAME'..."
-    conda create -n "$ENV_NAME" python=3.10 -y
+    conda create --prefix "$(pwd)/$ENV_NAME" python=3.10 -y
 fi
 
 # 激活 Conda 环境
@@ -65,13 +65,13 @@ echo "验证 tkinter..."
 python -c "import tkinter; tkinter._test()" && echo "tkinter 安装成功。" || echo "tkinter 安装失败。"
 
 # 获取 Conda 环境中的 Python 解释器路径
-PYTHON_PATH=$(conda run -n $ENV_NAME which python)
+PYTHON_PATH=$(conda run --prefix "$(pwd)/$ENV_NAME" which python)
 
 # 创建 start.sh 文件
 echo "正在生成 start.sh 脚本..."
 echo "#!/bin/bash" > start.sh
 echo "eval \"\$(conda shell.bash hook)\"" >> start.sh
-echo "conda activate $ENV_NAME" >> start.sh
+echo "conda activate $(pwd)/$ENV_NAME" >> start.sh
 echo "$PYTHON_PATH $(pwd)/ccsqc.py" >> start.sh
 
 # 确保 start.sh 是可执行的

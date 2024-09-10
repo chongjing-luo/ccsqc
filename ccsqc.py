@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # #######################################################################
 # # 本代码文件是CCSQC的主程序，用于评分和查看评分结果
 # author: chongjing.luo@mail.bnu.edu.cn
@@ -651,31 +652,35 @@ class ccsqc:
             button.config(command=lambda et=errortype: self.select_and_filter("words", et))
             button.place(x=222 + i * 50, y=2, width=47, height=35)
 
-    def show_right_click_menu(self, listbox, event, qc_type_summary):
-        def cancel_right_click_menu(event=None):
-            # 取消右键菜单
-            if hasattr(self, 'right_click_menu'):
-                self.right_click_menu.unpost()
+    def cancel_right_click_menu(self, event=None):
+        # 取消右键菜单
+        if hasattr(self, 'right_click_menu'):
+            self.right_click_menu.unpost()
 
-            # 解除主窗口上的绑定
-            if hasattr(self, 'cancel_id') and self.cancel_id is not None:
+        # 解除主窗口上的绑定
+        if hasattr(self, 'cancel_id') and self.cancel_id is not None:
+            if self.qctype == "summary":
+                self.popup_table.unbind("<Button-1>", self.cancel_id)
+            elif self.qctype in self.qctypes:
                 self.master.unbind("<Button-1>", self.cancel_id)
-                self.cancel_id = None
+            self.cancel_id = None
 
-            # 如果popup_table存在，解除绑定
-            if hasattr(self, 'popup_table') and hasattr(self, 'popup_cancel_id'):
-                try:
-                    if self.popup_table.winfo_exists():
-                        self.popup_table.unbind("<Button-1>", self.popup_cancel_id)
-                        self.popup_cancel_id = None
-                    else:
-                        print("popup_table 已经被销毁，无法解绑。")
-                except tk.TclError as e:
-                    print(f"Warning: {e}")
+        # 如果popup_table存在，解除绑定
+        if hasattr(self, 'popup_table') and hasattr(self, 'popup_cancel_id') and self.qctype == "summary":
+            try:
+                if self.popup_table.winfo_exists():
+                    self.popup_table.unbind("<Button-1>", self.popup_cancel_id)
+                    self.popup_cancel_id = None
+                else:
+                    print("popup_table 已经被销毁，无法解绑。")
+            except tk.TclError as e:
+                print(f"Warning: {e}")
+
+    def show_right_click_menu(self, listbox, event, qc_type_summary):
 
         def on_popup_table_destroy(event=None):
             # 当popup_table被销毁时取消右键菜单
-            cancel_right_click_menu()
+            self.cancel_right_click_menu()
 
         # 确保菜单对象已创建
         if not hasattr(self, 'right_click_menu') or not self.right_click_menu.winfo_exists():
@@ -741,15 +746,94 @@ class ccsqc:
                 if not hasattr(self, 'cancel_id') or self.cancel_id is None:
                     if qc_type_summary == "summary":
                         if hasattr(self, 'popup_table') and self.popup_table is not None:
-                            self.cancel_id = self.popup_table.bind("<Button-1>", cancel_right_click_menu, add="+")
+                            self.cancel_id = self.popup_table.bind("<Button-1>", self.cancel_right_click_menu, add="+")
+
                         if hasattr(self, 'popup_table'):
                             if not hasattr(self, 'popup_cancel_id') or self.popup_cancel_id is None:
                                 self.popup_cancel_id = self.popup_table.bind("<Destroy>", on_popup_table_destroy)
                     else:
-                        self.cancel_id = self.master.bind("<Button-1>", cancel_right_click_menu, add="+")
+                        self.cancel_id = self.master.bind("<Button-1>", self.cancel_right_click_menu, add="+")
 
             except Exception as e:
                 print(f"{inspect.currentframe().f_lineno} Error: {e}")
+
+    def show_the_table(self, table=None, type="summary"):
+        # 检查 self.popup_table 是否存在且有效
+        if hasattr(self, 'popup_table') and self.popup_table is not None:
+            if self.popup_table.winfo_exists():
+                # 解除右键菜单绑定，防止销毁时报错
+                if self.platform in ["Linux", "Windows"]:
+                    self.listbox_table.unbind("<Button-3>")
+                elif self.platform == "Darwin":
+                    self.listbox_table.unbind("<Button-2>")
+                self.popup_table.destroy()
+            self.popup_table = None
+
+        if table is None:
+            if type == "summary":
+                if self.select_filter['summary']["tableformat"] == "wide":
+                    table = self.results_table_show_wide
+                elif self.select_filter['summary']["tableformat"] == "long":
+                    table = self.results_table_show_long
+            elif type in self.qctypes:
+                table = self.list_qctypee_table_long
+
+
+        # 将DataFrame中的None和NaN替换为空字符串
+        table = table.fillna('')  # 将NaN替换为空字符串
+        table = table.replace({None: ''})  # 将None替换为空字符串
+        self.Imgid_index = table.columns.get_loc("Imgid") + 1
+
+        # Create a new Toplevel window
+        self.popup_table = Toplevel(self.master)
+        self.popup_table.title("Table Summary")
+        self.popup_table.geometry("1400x800")
+        self.popup_table.protocol("WM_DELETE_WINDOW", self.on_popup_close)
+
+        # Determine the number of columns from the first row of the table
+        columns = len(table.columns)
+        column_ids = ["Index"] + [f"Column{i + 1}" for i in range(columns)]
+
+
+        # Initialize the Treeview
+        self.listbox_table = Treeview(self.popup_table, columns=column_ids, show='headings')
+        self.listbox_table.grid(row=0, column=0, sticky="nsew")
+
+        # Add headings and columns
+        for i, col_id in enumerate(column_ids):
+            self.listbox_table.heading(col_id, text=table.columns[i - 1] if i > 0 else "index")
+            self.listbox_table.column(col_id, width=150, stretch=False)
+
+        # 右键菜单绑定
+        if self.platform in ["Linux", "Windows"]:
+            self.listbox_table.bind("<Button-3>",
+                                    lambda event: self.show_right_click_menu(self.listbox_table, event, "summary"))
+        elif self.platform == "Darwin":
+            self.listbox_table.bind("<Button-2>",
+                                    lambda event: self.show_right_click_menu(self.listbox_table, event, "summary"))
+
+        # 插入表格数据
+        for index, row in enumerate(table.values.tolist(), start=1):
+            self.listbox_table.insert('', 'end', values=[index] + row)
+
+        # Add scrollbars
+        vsb = Scrollbar(self.popup_table, orient="vertical", command=self.listbox_table.yview)
+        hsb = Scrollbar(self.popup_table, orient="horizontal", command=self.listbox_table.xview)
+        self.listbox_table.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+        # 使用 grid 布局来放置滚动条
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb.grid(row=1, column=0, sticky="ew")
+
+        # 确保主窗口在调整大小时调整布局
+        self.popup_table.grid_rowconfigure(0, weight=1)
+        self.popup_table.grid_columnconfigure(0, weight=1)
+
+    def on_popup_close(self):
+        """This function is called when the popup_table is closed."""
+        self.cancel_right_click_menu()
+        self.popup_table.destroy()
+        self.popup_table = None
 
     def display_content(self, content, type):
 
@@ -766,10 +850,14 @@ class ccsqc:
             FilterPoint = content.get("FilterPoint", {})
             content_explained.append(f"FilterPoints:")
             if FilterPoint:
-                print(f"{inspect.currentframe().f_lineno} FilterPoint: {FilterPoint}")
-                for point, value in FilterPoint.items():
-                    content_explained.append(f"{point}:")
-                    content_explained.append(f"    {value}")
+                keys = list(FilterPoint.keys())
+                if "Initial Inclusion" in keys:
+                    idx = keys.index("Initial Inclusion")
+                    del keys[idx]
+                    keys.insert(0, "Initial Inclusion")
+                for key in keys:
+                    content_explained.append(f"{key}:")
+                    content_explained.append(f"    {FilterPoint[key]}")
 
             SelectVar = content.get("SelectVar", {})
             if SelectVar:
@@ -1050,8 +1138,9 @@ class ccsqc:
                 self.select_filter[explaintype]["select_filter_explained"] = explained_filter_text
                 self.select_filter[explaintype]["select_filter_text"] = filter_text
                 self.display_content(explained_filter_text, explaintype)
-                print(f"** {inspect.currentframe().f_lineno} Explained filter text: {explained_filter_text}")
 
+                print(f"{inspect.currentframe().f_lineno} self.qctype {self.qctype}")
+                self.show_the_table(type=self.qctype)
 
             elif op == "Delete":  # 删除最后一个单词或符号
                 current_index = self.selection_filter.index(INSERT)
@@ -1260,80 +1349,7 @@ class ccsqc:
                 self.listbox.see(item_id)
                 break
 
-    def show_the_table(self, table=None, type="summary"):
-        # 检查 self.popup_table 是否存在且有效
-        if hasattr(self, 'popup_table') and self.popup_table is not None:
-            if self.popup_table.winfo_exists():
-                # 解除右键菜单绑定，防止销毁时报错
-                self.listbox_table.unbind("<Button-3>")
-                self.listbox_table.unbind("<Button-2>")
-                self.popup_table.destroy()
-            self.popup_table = None
 
-        if table is None:
-            if type == "summary":
-                if self.select_filter['summary']["tableformat"] == "wide":
-                    table = self.results_table_show_wide
-                elif self.select_filter['summary']["tableformat"] == "long":
-                    table = self.results_table_show_long
-
-        # 将DataFrame中的None和NaN替换为空字符串
-        table = table.fillna('')  # 将NaN替换为空字符串
-        table = table.replace({None: ''})  # 将None替换为空字符串
-        self.Imgid_index = table.columns.get_loc("Imgid") + 1
-
-        # 将DataFrame转换为二维列表
-        data = table.values.tolist()
-        headers = table.columns.tolist()
-        data.insert(0, headers)  # 将表头插入到数据的第一行
-
-        # Create a new Toplevel window
-        self.popup_table = Toplevel(self.master)
-        self.popup_table.title("Table Summary")
-        self.popup_table.geometry("1400x800")
-
-        # Determine the number of columns from the first row of the table
-        columns = len(data[0])
-        column_ids = ["Index"] + [f"Column{i + 1}" for i in range(columns)]
-
-        # Create a Treeview widget with dynamic columns, including the index column
-        # Initialize the Treeview
-        self.listbox_table = Treeview(self.popup_table, columns=column_ids, show='headings')
-
-        # Set the column headings dynamically using the first row of the table as headers
-        for i, col_id in enumerate(column_ids):
-            self.listbox_table.heading(col_id, text=headers[i - 1] if i > 0 else "index")
-            self.listbox_table.column(col_id, width=150, stretch=False)  # 设置默认宽度，不启用stretch
-
-        # 使用 grid 布局来布局 Treeview 和滚动条
-        self.listbox_table.grid(row=0, column=0, sticky="nsew")
-
-        # 右键菜单绑定
-        if self.platform in ["Linux", "Windows"]:
-            self.listbox_table.bind("<Button-3>",
-                                    lambda event: self.show_right_click_menu(self.listbox_table, event, "summary"))
-        elif self.platform == "Darwin":
-            self.listbox_table.bind("<Button-2>",
-                                    lambda event: self.show_right_click_menu(self.listbox_table, event, "summary"))
-
-        # Insert data into the Treeview
-        for index, row in enumerate(data[1:], start=1):
-            self.listbox_table.insert('', 'end', values=[index] + row)
-
-        # Add scrollbars
-        vsb = Scrollbar(self.popup_table, orient="vertical", command=self.listbox_table.yview)
-        hsb = Scrollbar(self.popup_table, orient="horizontal", command=self.listbox_table.xview)
-
-        # 配置滚动条
-        self.listbox_table.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-
-        # 使用 grid 布局来放置滚动条
-        vsb.grid(row=0, column=1, sticky="ns")
-        hsb.grid(row=1, column=0, sticky="ew")
-
-        # 确保主窗口在调整大小时调整布局
-        self.popup_table.grid_rowconfigure(0, weight=1)
-        self.popup_table.grid_columnconfigure(0, weight=1)
 
     def show_summary(self):
         pass
@@ -1683,6 +1699,7 @@ class ccsqc:
             self.results_all['Initial Inclusion'] = {}
             self.results_all['Initial Inclusion']['wide'] = self.results_table_show_wide
             self.results_all['Initial Inclusion']['long'] = self.results_table_show_long
+            self.tmp_df = self.results_table_show_long
 
         # ############   对qctype和被试进行初步过滤
 
@@ -1697,26 +1714,34 @@ class ccsqc:
         if operation == "summary":
             basic_filter(df)
             keys = sorted([key for key in FilterPoint.keys() if key.startswith("FilterPoint")])
+            imgids_all = self.results_table_show_wide["Imgid"].unique().tolist()
             if keys:
                 for key in keys:
                     if FilterPoint[key]:
-                        self.results_table_show_long = self.processor.filterExplainPoint(self.results_table_show_long, FilterPoint[key])
-                        self.results_table_show_wide = self.processor.dflong2wide(self.results_table_show_long)
                         self.results_all[key] = {}
-                        self.results_all[key]['wide'] = self.results_table_show_wide
-                        self.results_all[key]['long'] = self.results_table_show_long
-            self.results_table_show_long = self.processor.sort_pdDataFrame_col(self.results_table_show_long, SelectVar)
-            self.results_table_show_wide = self.processor.sort_pdDataFrame_col(self.results_table_show_wide, SelectVar)
+                        self.results_all[key]['long_all'] = self.processor.filterExplainPoint(self.tmp_df, FilterPoint[key])
+                        self.results_all[key]['wide_all'] = self.processor.dflong2wide(self.results_all[key]['long_all'])
 
+                        imgids = self.results_all[key]['wide_all']["Imgid"].unique().tolist()
+                        imgids_all = list(set(imgids_all) & set(imgids))
+
+                        self.results_table_show_long = self.tmp_df[self.tmp_df["Imgid"].isin(imgids_all)]
+                        self.results_table_show_wide = self.processor.dflong2wide(self.results_table_show_long)
+                        self.results_all[key]['long'] = self.results_table_show_long
+                        self.results_all[key]['wide'] = self.results_table_show_wide
+
+            self.results_table_show_long = self.processor.sort_pdDataFrame_col(self.results_all[keys[-1]]['long'], SelectVar)
+            self.results_table_show_wide = self.processor.sort_pdDataFrame_col(self.results_all[keys[-1]]['wide'], SelectVar)
 
         elif operation in list(self.qctypes):
             self.results_all_dict_tmp = {}
             FilterPoint = self.select_filter[operation]['select_filter_explained']['FilterPoint']['Initial Inclusion']
-            print(f"** {inspect.currentframe().f_lineno} FilterPoint: {FilterPoint}")
-            list_qctypee_table = self.processor.filterExplainPoint(df, FilterPoint)
+            SelectVar = self.select_filter[operation]["select_filter_explained"].get("SelectVar", {})
+            self.list_qctypee_table_long = self.processor.filterExplainPoint(df, FilterPoint)
+            self.list_qctypee_table_long = self.processor.sort_pdDataFrame_col(self.list_qctypee_table_long, SelectVar)
 
             # 获得所有的imgid，并获取唯一的imgid
-            imgid_list = list_qctypee_table['Imgid'].tolist()
+            imgid_list = self.list_qctypee_table_long['Imgid'].tolist()
             imgid_list = list(set(imgid_list))
             for imgid in imgid_list:
                 self.results_all_dict_tmp[imgid] = self.results_all_dict[imgid]
@@ -1731,7 +1756,6 @@ class ccsqc:
             table_long = value['long']
             self.processor.save_df_to_csv(table_long, os.path.join(table_path, f"{key}_long.csv"))
             self.processor.save_df_to_csv(table_wide, os.path.join(table_path, f"{key}_wide.csv"))
-
 
         # 保存最终结果表格
         self.save_load_result_dict("results_all_table", "save")
@@ -1764,8 +1788,8 @@ def askproject(projectname):
         else:
             output_dir_new = output_dir
 
-        if not os.path.exists(output_dir_new):
-            os.makedirs(output_dir_new, exist_ok=True)
+        os.makedirs(output_dir_new, exist_ok=True)
+        os.makedirs(os.path.join(output_dir_new, "summary_input"), exist_ok=True)
 
         setting_path = os.path.join(output_dir_new, f"settings_{projectname}.json")
         if not os.path.exists(setting_path):
