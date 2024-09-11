@@ -1,7 +1,7 @@
 # CCSQC: A Comprehensive Quality Control Tool for MRI Data
 * author: Chongjing Luo (chongjing.luo@mail.bnu.edu.cn)
 * date: 2024-08-30
-* version: 1.0
+* version: 1.2.5 (2024-09-11)
 
 
 ## 项目简介
