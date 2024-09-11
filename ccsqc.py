@@ -121,7 +121,7 @@ class ccsqc:
         if messagebox.askokcancel("Quit", "Do You Want to Quit?"):
             self.master.destroy()
             self.backup()
-            self.save_load_result_dict(["qc_types", "settings", "results_all_dict", "results_all_table", "path_dict"], "save")
+            self.save_load_result_dict()
             self.master.quit()
 
     def create_initial_widgets(self):
@@ -842,6 +842,7 @@ class ccsqc:
         elif type in self.qctypes:
             self.showbox_select.delete(*self.showbox_select.get_children())
         elif type == 'summary':
+            self.showbox_select.delete(*self.showbox_select.get_children())
             self.showbox.delete(*self.showbox.get_children())
 
         if content:
@@ -856,12 +857,11 @@ class ccsqc:
                     del keys[idx]
                     keys.insert(0, "Initial Inclusion")
                 for key in keys:
-                    content_explained.append(f"{key}:")
-                    content_explained.append(f"    {FilterPoint[key]}")
+                    content_explained.append(f"    {key}:")
+                    content_explained.append(f"        {FilterPoint[key]}")
 
             SelectVar = content.get("SelectVar", {})
             if SelectVar:
-                print(f"{inspect.currentframe().f_lineno} SelectVar: {SelectVar}")
                 content_explained.append(f"SelectVar:")
                 for convar in ['include', 'Not include', 'var2rank']:
                     value = SelectVar.get(convar, [])
@@ -910,10 +910,12 @@ class ccsqc:
         elif oper_type == "getthelist":
             self.get_path_dict()
             self.get_result_all_dict()
-            self.save_load_result_dict("results_all_dict", "save")
-            self.handle_selection_filter('basic_filter')
 
         elif oper_type == "showthetable":
+            if self.results_table_show_long is None or self.results_table_show_wide is None:
+                if not self.results_all_dict:
+                    self.get_result_all_dict()
+                self.handle_selection_filter('basic_filter')
             self.show_the_table(type="summary")
 
         elif oper_type == "tabletrans":
@@ -1123,7 +1125,7 @@ class ccsqc:
             elif op in ["SelectVar","FilterPoint"]:
                 self.select_and_filter("words", op)
             elif op == "Explain":
-                explaintype = params[1]
+                explaintype = params[1] # types: self.qctypes summary
                 filter_text = self.selection_filter.get("1.0", END).strip()
                 explained_filter_text = {}
                 if filter_text:
@@ -1567,7 +1569,7 @@ class ccsqc:
         if not os.path.exists(path_results):
             os.makedirs(path_results, exist_ok=True)
         if result_types == None:
-            self.save_load_result_dict(["results_all_dict", "path_dict", "qc_types", "results_all_table"], operation)
+            self.save_load_result_dict(["results_all_dict", "path_dict", "qc_types", "results_table_show"], operation)
         else:
             for result_type in result_types:
 
